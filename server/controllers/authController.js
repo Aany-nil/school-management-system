@@ -43,7 +43,7 @@ const registration = async (req, res) => {
             role
         });
 
-        const token = signAccessToken(user._id);
+        const token = signAccessToken(user._id, user.role);
         return res.status(201).json({
             success: true,
             message: "registration is successfully",
@@ -58,7 +58,7 @@ const registration = async (req, res) => {
             }
         })
     } catch (error) {
-        if(error.name === "validationError") {
+        if(error.name === "ValidationError") {
           const message = Object.values(error.errors).map((error) => error.message).join(",");
           
           return res.status(400).json({
@@ -76,4 +76,52 @@ const registration = async (req, res) => {
 }
 
 
-module.exports = { registration }
+const login = async (req, res) => {
+    try {
+       const { email, password } = req.body;
+
+       if(!email || !password) {
+       return res.status(400).json({
+        success: false,
+        message: "email and password are required"
+        });
+       }
+       const user = await User.findOne({ email: email.toLowerCase() }).select("+password");
+
+       if(!user || !(await user.comparePassword(password))) {
+        return res.status(401).json({
+            success: false,
+            message: "invalid email or password"
+        });
+       }
+
+       const token = signAccessToken(user._id, user.role);
+
+       return res.status(200).json({
+        success: true,
+        message: "login successful",
+        data: {
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                profilePicture: user.profilePicture,
+                bio: user.bio,
+                address: user.address,
+            },
+            token,
+         }
+       });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "login failed",
+            error: error.message
+        })
+        
+    }
+}
+
+
+module.exports = { registration,login }
