@@ -85,8 +85,39 @@ const getAllfees = async (req, res) => {
     }
 }
 
+const getStudentFee = async (req, res) => {
+  try {
+
+    const studentfees = await Fee.findOne({
+        student: req.user._id
+    }).populate("student", "name email")
+
+    if(!studentfees) {
+      return res.status(404).json({
+        success: false,
+        message: "student fee record not found"
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "student fees retreive successfully",
+      data: studentfees,
+    });
+
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "failed to retrieve your fees",
+      error: error.message
+    });
+    
+  }
+}
+
 
 module.exports = { 
     createFee,
-    getAllfees, 
+    getAllfees,
+    getStudentFee 
 }
