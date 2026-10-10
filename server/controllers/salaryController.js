@@ -90,9 +90,68 @@ const getAllSalaries = async (req, res) => {
     }
 }
 
+const updateSalaryPayment = async (req, res) => {
+    try {
+        const { paidAmount } = req.body;
+
+        if(typeof paidAmount !== "number" || 
+            !Number.isFinite(paidAmount) || paidAmount <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: "paid amount must be a positive number"
+            });
+        }
+
+        const salary = await Salary.findById(req.params.id);
+
+        if(!salary) {
+            return res.status(404).json({
+                success: false,
+                message: "salary record not found"
+            });
+        }
+
+        if(paidAmount > salary.dueAmount) {
+            return res.status(400).json({
+                success: false,
+                message: "payment cannot be greater than the due amount"
+            });
+        }
+
+
+        salary.paidAmount += paidAmount;
+        salary.dueAmount = salary.salaryAmount - salary.paidAmount;
+
+        if(salary.dueAmount === 0) {
+            salary.status = "Paid";
+        }else if(salary.paidAmount > 0) {
+            salary.status = "Partial";
+        }else {
+            salary.status = "Due"
+        }
+
+        salary.paymentDate = new Date();
+         
+        await salary.save();
+
+        return res.status(200).json({
+            success: true,
+            message: "salary payment update successfully",
+            data: salary,
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "falied to update salary payment",
+            error: error.message,
+        });
+    }
+}
+
 
 
 module.exports = {
     createSalary,
     getAllSalaries,
+    updateSalaryPayment,
 }
