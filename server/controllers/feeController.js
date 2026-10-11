@@ -115,9 +115,38 @@ const getStudentFee = async (req, res) => {
   }
 }
 
+const deleteFee = async (req, res) => {
+  try {
+    const fee = await Fee.findById(req.params.id);
+
+    if(!fee) {
+      return res.status(404).json({
+        success: false,
+        message: "fee not found"
+      });
+    }
+
+    await Fee.findByIdAndDelete(req.params.id);
+
+    return res.status(200).json({
+      success: true,
+      message: "fee deleted successfully"
+    });
+
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "fee deleted to failed",
+      error: error.message,
+    });
+    
+  }
+}
+
 
 module.exports = { 
     createFee,
     getAllfees,
-    getStudentFee 
+    getStudentFee,
+    deleteFee, 
 }

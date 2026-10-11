@@ -148,10 +148,111 @@ const updateSalaryPayment = async (req, res) => {
     }
 }
 
+const getTeacherSalary = async (req, res) => {
+
+    try {
+       const salaries = await Salary.find({
+        teacher: req.user._id,
+       }).sort({ month: -1 });
+
+       return res.status(200).json({
+        success: true,
+        message: "teacher salary retrieve successfully",
+        data: {
+            salaries,
+            count: salaries.length,
+        }
+       });
+        
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: "teacher salary retrieve to failed",
+        error: error.message,
+      });  
+    }
+}
+
+
+const getSalaryPayslip = async (req, res) => {
+    try {
+        const salary = await Salary.findById(req.params.id).populate("teacher", "name email");
+
+        if(!salary) {
+            return res.status(404).json({
+                success: false,
+                message: "salary record not found"
+            });
+        }
+
+        if(req.user.role === "teacher" && salary.teacher._id.toString() 
+            !== req.user._id.toString()) {
+        return res.status(403).json({
+            success: false,
+            message: "you can't view another teacher payslip"
+        });
+    }
+
+
+    return res.status(200).json({
+        success: true,
+        message: "teacher payslip retrieve successfully",
+        data: {
+           paySlipNumber: salary._id.toString(),
+           teacher: salary.teacher,
+           month: salary.month,
+           salaryAmount: salary.salaryAmount,
+           paidAmount: salary.paidAmount,
+           dueAmount: salary.dueAmount,
+           status: salary.status,
+           paymentDate: salary.paymentDate,
+
+        },
+    });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        message: "payslip retrieve to failed",
+        error: error.message,
+      });  
+    }
+}
+
+const deleteSalary = async (req, res) => {
+    try {
+        const salary = await Salary.findById(req.params.id);
+
+        if(!salary) {
+            return res.status(404).json({
+                success: false,
+                message: "salary not found"
+            });
+        }
+
+        await Salary.findByIdAndDelete(req.params.id);
+
+        return res.status(200).json({
+            success: true,
+            message: "salary deleted successfully",
+
+        })
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "failed to salary record",
+            error: error.message,
+        })
+        
+    }
+}
+
 
 
 module.exports = {
     createSalary,
     getAllSalaries,
     updateSalaryPayment,
+    getTeacherSalary,
+    getSalaryPayslip,
+    deleteSalary,
 }
