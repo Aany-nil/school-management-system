@@ -78,10 +78,75 @@ const getSingleClass = async (req, res) => {
     }
 }
 
+const updateClass = async (req, res) => {
+
+    try {
+        const updatedClass = await Class.findByIdAndUpdate(
+            req.params.id,
+            req.body,
+            {
+                new: true, 
+                runValidators: true,
+            }
+        );
+
+        if(!updatedClass) {
+            return res.status(404).json({
+                success: false,
+                message: "class not found"
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "class updated successfully",
+            data: updatedClass,
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "failed to update class",
+            error: error.message
+        });
+    }
+}
+
+const deleteClass = async (req, res) => {
+    try {
+
+        const deletedClass = await Class.findByIdAndDelete(
+            req.params.id
+        );
+
+        if(!deletedClass) {
+            return res.status(404).json({
+                success: false,
+                message: "class not found"
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "class deleted successfully",
+            data: deletedClass,
+        });
+
+        
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "class deleted to failed",
+            error: error.message
+        });
+        
+    }
+}
+
 
 module.exports = { 
     createClass,
     getAllClasses,
     getSingleClass,
-
+    updateClass,
+    deleteClass
 }
