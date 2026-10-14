@@ -6,6 +6,7 @@ const fee = require("./fee");
 const salary = require("./salary");
 const classRoutes = require("./class");
 const subject = require("./subject");
+const attendance = require("./attendance");
 
 
 
@@ -15,6 +16,7 @@ router.use("/fee", fee);
 router.use("/salary", salary);
 router.use("/class", classRoutes);
 router.use("/subject", subject);
+router.use("/attendance", attendance);
 
 
 

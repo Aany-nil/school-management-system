@@ -39,7 +39,7 @@ const createSubject = async (req, res) => {
             return res.status(400).json({
                 success: false,
                 message: "subject code already exists in this code"
-            })
+            });
         }
 
         const subject = await Subject.create({
@@ -99,7 +99,7 @@ const getSingleSubject = async (req, res) => {
             return res.status(400).json({
                 success: false,
                 message: "invalid subject id"
-            })
+            });
         }
 
         const subject = await Subject.findById(id)
@@ -222,10 +222,49 @@ const updateSubject = async (req, res) => {
     }
 }
 
+const deleteSubject = async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        if(!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({
+                success: false,
+                message: "invalid subject id"
+            });
+        }
+
+        const subject = await Subject.findById(id);
+
+        if(!subject) {
+            return res.status(404).json({
+                success: false,
+                message: "subject not found"
+            });
+        }
+
+        const deletedSubject = await Subject.findByIdAndDelete(id);
+
+        return res.status(200).json({
+            success: true,
+            message: "subject deleted successfully",
+            data: deletedSubject
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "subject deleted to failed",
+            error: error.message
+        });
+        
+    }
+}
+
 
 module.exports = {
     createSubject,
     getAllSubject,
     getSingleSubject,
     updateSubject,
+    deleteSubject
 }
