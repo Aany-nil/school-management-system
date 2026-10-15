@@ -7,6 +7,7 @@ const salary = require("./salary");
 const classRoutes = require("./class");
 const subject = require("./subject");
 const attendance = require("./attendance");
+const routine = require("./routine");
 
 
 
@@ -17,6 +18,7 @@ router.use("/salary", salary);
 router.use("/class", classRoutes);
 router.use("/subject", subject);
 router.use("/attendance", attendance);
+router.use("/routine", routine);
 
 
 
