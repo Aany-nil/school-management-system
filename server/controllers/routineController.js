@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const Routine = require("../models/Routine");
 
 const createRoutine = async (req, res) => {
@@ -47,8 +48,34 @@ const createRoutine = async (req, res) => {
 }
 
 
+const getAllRoutine = async (req, res) => {
+
+    try {
+        const routines = await Routine.find()
+        .populate("classId", "className section")
+        .populate("subjectId", "subjectName, subjectCode")
+        .populate("teacherId", "name email");
+
+        return res.status(200).json({
+            success: true,
+            total: routines.length,
+            data: routines
+        });
+        
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "failed to get routines",
+            error: error.message
+        });
+        
+    }
+}
+
+
 
 
 module.exports = {
     createRoutine,
+    getAllRoutine,
 }
