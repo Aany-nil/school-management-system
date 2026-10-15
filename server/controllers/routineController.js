@@ -72,6 +72,29 @@ const getAllRoutine = async (req, res) => {
     }
 }
 
+const getSingleRoutine = async (req, res) => {
+
+    try {
+        const { id } = req.params;
+
+        if(!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({
+                success: false,
+                message: "invalid routine id"
+            });
+        }
+
+        const routine = await Routine.findById(id)
+        .populate("classId", "className section")
+        .populate("subjectId", "subjectName subjectCode")
+        .populate("teacherId", "name email");
+
+        
+    } catch (error) {
+        
+    }
+}
+
 
 
 
