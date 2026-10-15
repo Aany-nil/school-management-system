@@ -97,6 +97,160 @@ const createAttendance = async (req, res) => {
 }
 
 
+const getAllAttendance = async (req, res) => {
+
+    try {
+        const { classId, student, date } = req.query;
+
+        const filter = {};
+
+        if(classId) {
+            
+            filter.classId = classId;
+        }
+
+        if(student) {
+            filter.student = student;
+        }
+
+       if (date) {
+              const startDate = new Date(`${date}T00:00:00.000Z`);
+              const endDate = new Date(startDate);
+              endDate.setDate(endDate.getDate() + 1); 
+
+        filter.date = {
+        $gte: startDate,$lt: endDate
+
+        };
+      }
+        const attendance = await Attendance.find(filter)
+
+        .populate("student", "name email")
+        .populate("classId", "className section")
+        .sort({ date: -1 });
+
+        return res.status(200).json({
+            success: true,
+            total: attendance.length,
+            data: attendance
+        })
+        
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "failed ot all attendance get",
+            error: error.message
+        });
+        
+    }
+}
+
+const updateAttendance = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status, remarks } = req.body;
+
+        const attendance = await Attendance.findById(id);
+
+        if(!attendance) {
+            return res.status(404).json({
+                success: false,
+                message: "attendance not found"
+            });
+        }
+
+        if(status) {
+            attendance.status = status;
+        }
+
+        if(remarks !== undefined) {
+            attendance.remarks = remarks;
+        }
+
+        await attendance.save();
+
+        return res.status(200).json({
+            success: true,
+            message: "attendance update successfully",
+            data: attendance
+        });
+        
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "attendance update to failed",
+            error: error.message
+        });
+        
+    }
+}
+
+const deleteAttendance = async (req, res) => {
+
+    try {
+        const { id } = req.params;
+
+        if(!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({
+                success: false,
+                message: "invalid attendance id"
+            });
+        }
+
+        const attendance = await Attendance.findByIdAndDelete(id);
+
+        if(!attendance) {
+            return res.status(404).json({
+                success: false,
+                message: "attendance not found"
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "attendance deleted successfully"
+        });
+               
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "attendance deleted to failed",
+            error: error.message
+        });
+        
+    }
+}
+
+const getMyAttendance = async (req, res) => {
+
+    try {
+        const attendance = await Attendance.find({
+
+           student: req.user._id
+        }).populate("classId", "className section academicYear").sort({ date: -1 });
+
+        return res.status(200).json({
+            success: true,
+            total: attendance.length,
+            data: attendance
+        });
+        
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "failed to get your attendance",
+            error: error.message
+
+        });
+        
+    }
+}
+
+
 module.exports = {
     createAttendance,
+    getAllAttendance,
+    updateAttendance,
+    deleteAttendance,
+    getMyAttendance
 }
