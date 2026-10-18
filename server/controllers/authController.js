@@ -124,4 +124,54 @@ const login = async (req, res) => {
 }
 
 
-module.exports = { registration,login }
+const adminSetPassword = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and password are required.",
+      });
+    }
+
+    if (password.length < 5 ) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 5 characters.",
+      });
+    }
+
+    const user = await User.findOne({
+      email: email.trim().toLowerCase(),
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    user.password = password;
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Password updated successfully. Please login again.",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Password update failed.",
+    });
+  }
+};
+
+
+
+module.exports = { 
+    registration,
+    login, 
+    adminSetPassword 
+}

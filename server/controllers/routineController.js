@@ -89,8 +89,26 @@ const getSingleRoutine = async (req, res) => {
         .populate("subjectId", "subjectName subjectCode")
         .populate("teacherId", "name email");
 
+        if(!routine) {
+            return res.status(404).json({
+               success: false,
+               message: "routine not found"
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "routine retrieve successfully",
+            data: routine
+        });
+
         
     } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "routine retrieve to failed",
+            error: error.message
+        });
         
     }
 }
@@ -98,7 +116,10 @@ const getSingleRoutine = async (req, res) => {
 
 
 
+
+
 module.exports = {
     createRoutine,
     getAllRoutine,
+    getSingleRoutine,
 }
