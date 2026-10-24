@@ -113,6 +113,79 @@ const getSingleRoutine = async (req, res) => {
     }
 }
 
+const updateRoutine = async (req, res) => {
+
+    try {
+        const routine = await Routine.findByIdAndUpdate(
+            req.params.id,
+            req.body,
+            {
+                new: true,
+                runValidators: true,
+            }
+        );
+
+        if(!routine) {
+            return res.status(404).json({
+                success: true,
+                message: "routine not found"
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "routine update successfully"
+        });
+        
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "routine update to failed",
+            error: error.message
+        });
+        
+    }
+}
+
+const deleteRoutine = async (req, res) => {
+
+    try {
+        const { id } = req.params;
+       
+        if(!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({
+                success: false,
+                message: "routine id invalid"
+            });
+
+        }
+
+        const routine = await Routine.findByIdAndDelete(id);
+
+        if(!routine) {
+            res.status(404).json({
+                success: false,
+                message: "routine not found"
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "routine deleted successfully",
+            data: routine
+        })
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "routine delete to failed",
+            error: error.message
+        });
+        
+    }
+}
+
+
+
 
 
 
@@ -122,4 +195,6 @@ module.exports = {
     createRoutine,
     getAllRoutine,
     getSingleRoutine,
+    updateRoutine,
+    deleteRoutine
 }
