@@ -10,6 +10,7 @@ const attendance = require("./attendance");
 const routine = require("./routine");
 const result = require("./result");
 const student = require("./student");
+const teacher = require("./teacher");
 
 
 
@@ -23,6 +24,7 @@ router.use("/attendance", attendance);
 router.use("/routine", routine);
 router.use("/result", result);
 router.use("/student", student);
+router.use("/teacher", teacher);
 
 
 
