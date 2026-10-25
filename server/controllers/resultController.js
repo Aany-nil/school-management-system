@@ -177,6 +177,41 @@ const updateResult = async (req, res) => {
     }
 }
 
+const deleteResult = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        if(!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({
+                success: false,
+                message: "invalid result id"
+            })
+        }
+        const deletedResult = await Result.findByIdAndDelete(id);
+
+        if(!deletedResult) {
+            return res.status(404).json({
+                success: false,
+                message: "result is not found"
+
+            });
+        }
+        return res.status(200).json({
+            success: true,
+            message: "result deleted successfully",
+            data: deletedResult,
+        })
+        
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "failed to result delete",
+            error: error.message
+        });
+        
+    }
+}
+
 
 
 module.exports = {
@@ -184,4 +219,5 @@ module.exports = {
     getAllResults,
     getStudentResult,
     updateResult,
+    deleteResult
 }
