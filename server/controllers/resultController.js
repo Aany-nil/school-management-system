@@ -70,7 +70,118 @@ const createResult = async (req, res) => {
 }
 
 
+const getAllResults = async (req, res) => {
+    try {
+        const results = await Result.find()
+        .populate("studentId", "name email")
+        .populate("classId")
+        .populate("subjectId")
+
+    return res.status(200).json({
+        success: true,
+        count: results.length,
+        message: "all result are retrieve successfully",
+        data: results,
+    });
+    } catch (error) {
+    return res.status(500).json({
+        success: false,
+        message: "all result retrieve to failed",
+        error: error.message
+    });
+        
+    }
+}
+
+const getStudentResult = async (req, res) => {
+    try {
+        const { studentId } = req.params;
+
+        if(!mongoose.Types.ObjectId.isValid(studentId)) {
+          
+         return res.status(400).json({
+            success: false,
+            message: "invalid student id",
+         });
+        }
+
+        if(
+            req.user.role === "student" &&
+            req.user._id.toString() !== studentId
+        ) {
+            return res.status(403).json({
+                success: false,
+                message: "you can view only your own results"
+            });
+        }
+
+        const studentResults = await Result.find({ studentId })
+        .populate("studentId", "name email")
+        .populate("classId")
+        .populate("subjectId")
+
+        return res.status(200).json({
+            success: true,
+            count: studentResults.length,
+            data: studentResults,
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "student results retrieve to failed",
+            error: error.message
+        });
+    }
+}
+
+
+const updateResult = async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        if(!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({
+                success: false,
+                message: "invalid result id"
+            });
+        }
+
+        const results = await Result.findByIdAndUpdate(id, req.body,
+            {
+                returnDocument: "after",
+                runValidators: true,
+            }
+        )
+
+        if(!results) {
+            return res.status(400).json({
+                success: false,
+                message: "results not found"
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "results update is successfully",
+            data: results,
+        });
+        
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "results update to failed",
+            error: error.message
+        });
+        
+    }
+}
+
+
 
 module.exports = {
     createResult,
+    getAllResults,
+    getStudentResult,
+    updateResult,
 }
