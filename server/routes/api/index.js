@@ -11,6 +11,9 @@ const routine = require("./routine");
 const result = require("./result");
 const student = require("./student");
 const teacher = require("./teacher");
+const notice = require("./notice");
+
+
 
 
 
@@ -25,6 +28,7 @@ router.use("/routine", routine);
 router.use("/result", result);
 router.use("/student", student);
 router.use("/teacher", teacher);
+router.use("/notice", notice);
 
 
 
