@@ -24,7 +24,39 @@ const getAllStudents = async (req, res) => {
     }
 }
 
+const getStudentById = async (req, res) => {
+
+    try {
+        const student = await User.findOne({
+             _id: req.params.id,
+            role: "student"
+        }).select("-password");
+
+        if(!student) {
+            return res.status(404).json({
+                success: false,
+                message: "student not found"
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "student retrieve successfully",
+            data: student,
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "student retrieve to failed",
+            error: error.message
+        });
+        
+    }
+}
+
 
 module.exports = {
     getAllStudents,
+    getStudentById,
 }
