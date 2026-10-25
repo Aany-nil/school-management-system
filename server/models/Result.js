@@ -15,7 +15,7 @@ const resultSchema = new mongoose.Schema({
     subjectId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Subject",
-        require: true,
+        required: true,
     },
     examName: {
         type: String,
@@ -42,11 +42,13 @@ const resultSchema = new mongoose.Schema({
   }
 );
 
-resultSchema.pre("validate", function (next) {
-    if(this.marks > this.totalMarks) {
-        this.invalidate("marks", "Marks is not exceed total marks");
+resultSchema.pre("validate", function () {
+    if (this.marks > this.totalMarks) {
+        this.invalidate(
+            "marks",
+            "Marks cannot exceed total marks"
+        );
     }
-    next();
 });
 
 module.exports = mongoose.model("Result", resultSchema);

@@ -8,6 +8,7 @@ const classRoutes = require("./class");
 const subject = require("./subject");
 const attendance = require("./attendance");
 const routine = require("./routine");
+const result = require("./result");
 
 
 
@@ -19,6 +20,7 @@ router.use("/class", classRoutes);
 router.use("/subject", subject);
 router.use("/attendance", attendance);
 router.use("/routine", routine);
+router.use("/result", result);
 
 
 
