@@ -27,7 +27,7 @@ const attendanceSchema = new mongoose.Schema({
 
     remarks: {
         type: String,
-        require: true,
+        required: true,
         default: ""
     }
    
@@ -38,7 +38,7 @@ const attendanceSchema = new mongoose.Schema({
 );
 
 attendanceSchema.index(
-    { student: 1, classId: 1, data: 1 },
+    { student: 1, classId: 1, date: 1 },
     { unique: true }
 );
 

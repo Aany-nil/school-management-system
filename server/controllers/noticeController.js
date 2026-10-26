@@ -177,6 +177,43 @@ const updateNotice = async (req, res) => {
     }
 }
 
+const deleteNotice = async (req, res) => {
+
+    try {
+        const { id } = req.params;
+
+        if(!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({
+               success: false,
+               message: "invalid notice id"
+            });
+        }
+
+        const deletedNotice = await Notice.findByIdAndDelete(id);
+
+        if(!deletedNotice) {
+            return res.status(404).json({
+                success: false,
+                message: "notice not found"
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "notice deleted successfully",
+            data: deletedNotice,
+        })
+        
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "notice deleted to failed",
+            error: error.message
+        });
+        
+    }
+}
+
 
 
 module.exports = {
@@ -184,4 +221,5 @@ module.exports = {
     getAllNotice,
     getNoticeById,
     updateNotice,
+    deleteNotice
 }
