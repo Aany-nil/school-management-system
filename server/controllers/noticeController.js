@@ -62,7 +62,7 @@ const getAllNotice = async (req, res) => {
         count: notices.length,
         data: notices
      });
-     
+
     } catch (error) {
         return res.status(500).json({
             success: false,
@@ -73,9 +73,57 @@ const getAllNotice = async (req, res) => {
     }
 }
 
+const getNoticeById = async (req, res) => {
+
+    try {
+        const { id } = req.params;
+
+    if(!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({
+            success: false,
+            message: "invalid notice id"
+        });
+    }
+
+    const role = req.user.role;
+    const filter = {
+
+      _id: id,
+      ...(role === "admin"
+        ? {}
+        : { targetRole: { $in: ["all", role] } }),
+    };
+
+    const notice = await Notice.findOne(filter)
+    .populate("createdBy", "name email");
+
+    if(!notice) {
+        return res.status(404).json({
+            success: false,
+            message: "notice not found"
+        });
+    }
+
+    return res.status(200).json({
+        success: true,
+        message: "notice retrieve successfully",
+        data: notice,
+    });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "notice retrieve to failed",
+            error: error.message
+        });
+        
+    }
+
+}
+
 
 
 module.exports = {
     createNotice,
     getAllNotice,
+    getNoticeById,
 }
