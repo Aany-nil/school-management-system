@@ -12,6 +12,7 @@ const result = require("./result");
 const student = require("./student");
 const teacher = require("./teacher");
 const notice = require("./notice");
+const dashboard = require("./dashboard");
 
 
 
@@ -29,6 +30,7 @@ router.use("/result", result);
 router.use("/student", student);
 router.use("/teacher", teacher);
 router.use("/notice", notice);
+router.use("/dashboard", dashboard);
 
 
 
