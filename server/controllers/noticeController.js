@@ -121,9 +121,67 @@ const getNoticeById = async (req, res) => {
 }
 
 
+const updateNotice = async (req, res) => {
+
+    try {
+        const { id } = req.params;
+
+        if(!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({
+                success: false,
+                message: "invalid notice id"
+            });
+        }
+
+        const noticeUpdate = [
+            "title",
+            "description",
+            "targetRole",
+            "publishDate"
+        ];
+
+        const updates = {}
+
+        for (const field of noticeUpdate) {
+            if (req.body[field] !== undefined) {
+            updates[field] = req.body[field];
+             }
+     }
+
+     const notice = await Notice.findByIdAndUpdate(id, updates, {
+
+         returnDocument: "after",
+         runValidators: true,
+      });
+
+      if(!notice) {
+        return res.status(404).json({
+            success: false,
+            message: "notice not found"
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "notice update successfully",
+        data: notice,
+      });
+
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "notice update to failed",
+            error: error.message
+        });
+        
+    }
+}
+
+
 
 module.exports = {
     createNotice,
     getAllNotice,
     getNoticeById,
+    updateNotice,
 }
