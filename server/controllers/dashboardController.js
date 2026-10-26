@@ -143,9 +143,94 @@ const getTeacherDashboard = async (req, res) => {
   }
 };
 
+const getStudentDashboard = async (req, res) => {
+  try {
+    const studentId = req.user._id;
+
+    const student = await User.findOne({
+      _id: studentId,
+      role: "student",
+    }).select("-password");
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: "Student not found",
+      });
+    }
+
+    const fees = await Fee.find({ student: studentId });
+
+    let totalFee = 0;
+    let paidFee = 0;
+    let dueFee = 0;
+
+    for (const fee of fees) {
+      totalFee += fee.totalFee || 0;
+      paidFee += fee.paidAmount || 0;
+      dueFee += fee.dueAmount || 0;
+    }
+
+    const present = await Attendance.countDocuments({
+      student: studentId,
+      status: "Present",
+    });
+
+    const absent = await Attendance.countDocuments({
+      student: studentId,
+      status: "Absent",
+    });
+
+    const late = await Attendance.countDocuments({
+      student: studentId,
+      status: "Late",
+    });
+
+    const results = await Result.find({ studentId })
+      .populate("classId", "name")
+      .populate("subjectId", "subjectName")
+      .sort({ createdAt: -1 });
+
+    const recentNotices = await Notice.find({
+      targetRole: { $in: ["all", "student"] },
+    })
+      .sort({ createdAt: -1 })
+      .limit(5);
+
+    return res.status(200).json({
+      success: true,
+      message: "Student dashboard retrieved successfully",
+      data: {
+        profile: student,
+
+        fees: {
+          totalFee,
+          paidFee,
+          dueFee,
+        },
+
+        attendance: {
+          present,
+          absent,
+          late,
+        },
+
+        results,
+        recentNotices,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to retrieve student dashboard",
+      error: error.message,
+    });
+  }
+};
 
 
 module.exports = {
     getAdminDashboard,
     getTeacherDashboard,
+    getStudentDashboard
 }
