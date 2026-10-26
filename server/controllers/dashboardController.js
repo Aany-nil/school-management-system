@@ -100,9 +100,52 @@ const getAdminDashboard = async (req, res) => {
   }
 };
 
+const getTeacherDashboard = async (req, res) => {
+
+  try {
+    const teacher = await User.findOne({
+      _id: req.user._id,
+      role: "teacher",
+    }).select("-password");
+
+    if (!teacher) {
+      return res.status(404).json({
+        success: false,
+        message: "Teacher not found",
+      });
+    }
+
+    const totalClasses = await Class.countDocuments();
+    const totalSubjects = await Subject.countDocuments();
+
+    const recentNotices = await Notice.find({
+      targetRole: { $in: ["all", "teacher"] },
+    })
+      .sort({ createdAt: -1 })
+      .limit(5);
+
+    return res.status(200).json({
+      success: true,
+      message: "Teacher dashboard retrieved successfully",
+      data: {
+        profile: teacher,
+        totalClasses,
+        totalSubjects,
+        recentNotices,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to retrieve teacher dashboard",
+      error: error.message,
+    });
+  }
+};
 
 
 
 module.exports = {
     getAdminDashboard,
+    getTeacherDashboard,
 }
