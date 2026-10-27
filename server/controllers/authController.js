@@ -3,33 +3,29 @@ const User = require("../models/User");
 
 const registration = async (req, res) => {
     try {
-        const { name, email, role, password, } = req.body;
+        const { name, email, password } = req.body;
 
-        if(!name || !email || !password || !role) {
+        if (!name || !email || !password) {
             return res.status(400).json({
                 success: false,
-                message: "name, email, password and role are required",
+                message: "name, email and password are required",
             });
         }
-        if(password.length < 5) {
+
+        if (password.length < 5) {
             return res.status(400).json({
                 success: false,
                 message: "password must be at least 5 characters"
             });
         }
 
-        const validedRole = ["admin", "teacher", "student"]
+        const normalizedEmail = email.trim().toLowerCase();
 
-        if(!validedRole.includes(role)) {
-            return res.status(400).json({
-                success: false,
-                message: "invalid role"
-            });
-        }
+        const existingUser = await User.findOne({
+            email: normalizedEmail
+        });
 
-        const existingUser = await User.findOne({ email: email.toLowerCase() });
-
-        if(existingUser) {
+        if (existingUser) {
             return res.status(409).json({
                 success: false,
                 message: "an account with this email exists"
@@ -37,13 +33,14 @@ const registration = async (req, res) => {
         }
 
         const user = await User.create({
-            name,
-            email: email.toLowerCase(),
+            name: name.trim(),
+            email: normalizedEmail,
             password,
-            role
+            role: "student"
         });
 
         const token = signAccessToken(user._id, user.role);
+
         return res.status(201).json({
             success: true,
             message: "registration is successfully",
@@ -56,15 +53,24 @@ const registration = async (req, res) => {
                 },
                 token,
             }
-        })
+        });
     } catch (error) {
-        if(error.name === "ValidationError") {
-          const message = Object.values(error.errors).map((error) => error.message).join(",");
-          
-          return res.status(400).json({
-            success: false,
-            message,
-          });
+        if (error.name === "ValidationError") {
+            const message = Object.values(error.errors)
+                .map((error) => error.message)
+                .join(",");
+
+            return res.status(400).json({
+                success: false,
+                message,
+            });
+        }
+
+        if (error.code === 11000) {
+            return res.status(409).json({
+                success: false,
+                message: "an account with this email exists",
+            });
         }
 
         return res.status(500).json({
@@ -73,7 +79,7 @@ const registration = async (req, res) => {
             error: error.message,
         });
     }
-}
+};
 
 
 const login = async (req, res) => {
