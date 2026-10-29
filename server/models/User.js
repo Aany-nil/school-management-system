@@ -41,7 +41,12 @@ const userSchema = new mongoose.Schema({
         type: String,
         default: "",
         maxlength: [200, "address cannot exceed 200 characters"],
-    }
+    },
+    monthlySalary: {
+         type: Number,
+         min: 0,
+         default: 0,
+ },
 
 },
 {

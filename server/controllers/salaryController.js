@@ -1,44 +1,56 @@
+
 const Salary = require("../models/Salary");
 const User = require("../models/User");
 
+// Create monthly salary using teacher's fixed monthly salary
 const createSalary = async (req, res) => {
     try {
+        const { teacher, month } = req.body;
 
-        const { teacher, month, salaryAmount } = req.body;
-
-        if(!teacher || !month || salaryAmount === undefined 
-            || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month) 
-
-            || !Number.isFinite(salaryAmount)
-
-            || salaryAmount <= 0) {
-            
-           return res.status(400).json({
-            success: false,
-            message: "valid teacher, month, salary amount are required"
-           });
-
+        if (
+            !teacher ||
+            !month ||
+            !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: "Valid teacher and month are required (YYYY-MM)",
+            });
         }
 
         const teacherInfo = await User.findById(teacher);
 
-        if(!teacherInfo || teacherInfo.role !== "teacher") {
+        if (!teacherInfo || teacherInfo.role !== "teacher") {
             return res.status(404).json({
                 success: false,
-                message: "teacher not found"
+                message: "Teacher not found",
             });
         }
 
+        // Read the teacher's fixed monthly salary
+        const salaryAmount = teacherInfo.monthlySalary;
+
+        if (
+            typeof salaryAmount !== "number" ||
+            !Number.isFinite(salaryAmount) ||
+            salaryAmount <= 0
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: "Please set a valid fixed monthly salary for this teacher first",
+            });
+        }
+
+        // Prevent duplicate salary for the same teacher and month
         const existingSalary = await Salary.findOne({
             teacher,
             month,
         });
 
-        if(existingSalary) {
+        if (existingSalary) {
             return res.status(409).json({
                 success: false,
-                message: "salary record already exists for this teacher and month"
-
+                message: "Salary record already exists for this teacher and month",
             });
         }
 
@@ -53,179 +65,195 @@ const createSalary = async (req, res) => {
 
         return res.status(201).json({
             success: true,
-            message: "salary created successfully",
+            message: "Monthly salary created successfully",
             data: salary,
-        })
-        
+        });
     } catch (error) {
         return res.status(500).json({
             success: false,
-            message: "salary create to failed",
+            message: "Failed to create salary",
             error: error.message,
         });
     }
-}
+};
 
 
+// Get all salary records (Admin)
 const getAllSalaries = async (req, res) => {
     try {
-        
-        const salaries = await Salary.find().populate("teacher", "name email")
-        .sort({ createdAt: -1 });
+        const salaries = await Salary.find()
+            .populate("teacher", "name email monthlySalary")
+            .sort({ createdAt: -1 });
 
         return res.status(200).json({
             success: true,
-            message: "salary record retrieve successfully",
+            message: "Salary records retrieved successfully",
             data: {
                 salaries,
                 count: salaries.length,
-            }
+            },
         });
     } catch (error) {
         return res.status(500).json({
             success: false,
-            message: "failed to salary retrieve",
+            message: "Failed to retrieve salary records",
             error: error.message,
         });
     }
-}
+};
 
+
+// Update salary payment (Admin)
 const updateSalaryPayment = async (req, res) => {
     try {
         const { paidAmount } = req.body;
 
-        if(typeof paidAmount !== "number" || 
-            !Number.isFinite(paidAmount) || paidAmount <= 0) {
+        if (
+            typeof paidAmount !== "number" ||
+            !Number.isFinite(paidAmount) ||
+            paidAmount <= 0
+        ) {
             return res.status(400).json({
                 success: false,
-                message: "paid amount must be a positive number"
+                message: "Paid amount must be a positive number",
             });
         }
 
         const salary = await Salary.findById(req.params.id);
 
-        if(!salary) {
+        if (!salary) {
             return res.status(404).json({
                 success: false,
-                message: "salary record not found"
+                message: "Salary record not found",
             });
         }
 
-        if(paidAmount > salary.dueAmount) {
+        if (paidAmount > salary.dueAmount) {
             return res.status(400).json({
                 success: false,
-                message: "payment cannot be greater than the due amount"
+                message: "Payment cannot be greater than the due amount",
             });
         }
 
-
+        // Add this payment to the previous paid amount
         salary.paidAmount += paidAmount;
-        salary.dueAmount = salary.salaryAmount - salary.paidAmount;
 
-        if(salary.dueAmount === 0) {
+        // Calculate the remaining due
+        salary.dueAmount = Math.max(
+            0,
+            salary.salaryAmount - salary.paidAmount
+        );
+
+        // Update payment status
+        if (salary.dueAmount === 0) {
             salary.status = "Paid";
-        }else if(salary.paidAmount > 0) {
+        } else if (salary.paidAmount > 0) {
             salary.status = "Partial";
-        }else {
-            salary.status = "Due"
+        } else {
+            salary.status = "Due";
         }
 
         salary.paymentDate = new Date();
-         
+
         await salary.save();
 
         return res.status(200).json({
             success: true,
-            message: "salary payment update successfully",
+            message: "Salary payment updated successfully",
             data: salary,
         });
     } catch (error) {
         return res.status(500).json({
             success: false,
-            message: "falied to update salary payment",
+            message: "Failed to update salary payment",
             error: error.message,
         });
     }
-}
+};
 
+
+// Get logged-in teacher's salary history
 const getTeacherSalary = async (req, res) => {
-
     try {
-       const salaries = await Salary.find({
-        teacher: req.user._id,
-       }).sort({ month: -1 });
+        const salaries = await Salary.find({
+            teacher: req.user._id,
+        }).sort({ month: -1 });
 
-       return res.status(200).json({
-        success: true,
-        message: "teacher salary retrieve successfully",
-        data: {
-            salaries,
-            count: salaries.length,
-        }
-       });
-        
+        return res.status(200).json({
+            success: true,
+            message: "Teacher salary history retrieved successfully",
+            data: {
+                salaries,
+                count: salaries.length,
+            },
+        });
     } catch (error) {
-      return res.status(500).json({
-        success: false,
-        message: "teacher salary retrieve to failed",
-        error: error.message,
-      });  
+        return res.status(500).json({
+            success: false,
+            message: "Failed to retrieve teacher salary history",
+            error: error.message,
+        });
     }
-}
+};
 
 
+// Get salary payslip
 const getSalaryPayslip = async (req, res) => {
     try {
-        const salary = await Salary.findById(req.params.id).populate("teacher", "name email");
+        const salary = await Salary.findById(req.params.id)
+            .populate("teacher", "name email monthlySalary");
 
-        if(!salary) {
+        if (!salary) {
             return res.status(404).json({
                 success: false,
-                message: "salary record not found"
+                message: "Salary record not found",
             });
         }
 
-        if(req.user.role === "teacher" && salary.teacher._id.toString() 
-            !== req.user._id.toString()) {
-        return res.status(403).json({
+        // A teacher can only view their own payslip
+        if (
+            req.user.role === "teacher" &&
+            salary.teacher._id.toString() !== req.user._id.toString()
+        ) {
+            return res.status(403).json({
+                success: false,
+                message: "You cannot view another teacher's payslip",
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Salary payslip retrieved successfully",
+            data: {
+                paySlipNumber: salary._id.toString(),
+                teacher: salary.teacher,
+                month: salary.month,
+                salaryAmount: salary.salaryAmount,
+                paidAmount: salary.paidAmount,
+                dueAmount: salary.dueAmount,
+                status: salary.status,
+                paymentDate: salary.paymentDate,
+            },
+        });
+    } catch (error) {
+        return res.status(500).json({
             success: false,
-            message: "you can't view another teacher payslip"
+            message: "Failed to retrieve salary payslip",
+            error: error.message,
         });
     }
+};
 
 
-    return res.status(200).json({
-        success: true,
-        message: "teacher payslip retrieve successfully",
-        data: {
-           paySlipNumber: salary._id.toString(),
-           teacher: salary.teacher,
-           month: salary.month,
-           salaryAmount: salary.salaryAmount,
-           paidAmount: salary.paidAmount,
-           dueAmount: salary.dueAmount,
-           status: salary.status,
-           paymentDate: salary.paymentDate,
-
-        },
-    });
-    } catch (error) {
-      return res.status(500).json({
-        success: false,
-        message: "payslip retrieve to failed",
-        error: error.message,
-      });  
-    }
-}
-
+// Delete salary record (Admin)
 const deleteSalary = async (req, res) => {
     try {
         const salary = await Salary.findById(req.params.id);
 
-        if(!salary) {
+        if (!salary) {
             return res.status(404).json({
                 success: false,
-                message: "salary not found"
+                message: "Salary record not found",
             });
         }
 
@@ -233,19 +261,16 @@ const deleteSalary = async (req, res) => {
 
         return res.status(200).json({
             success: true,
-            message: "salary deleted successfully",
-
-        })
+            message: "Salary record deleted successfully",
+        });
     } catch (error) {
         return res.status(500).json({
             success: false,
-            message: "failed to salary record",
+            message: "Failed to delete salary record",
             error: error.message,
-        })
-        
+        });
     }
-}
-
+};
 
 
 module.exports = {
@@ -255,4 +280,4 @@ module.exports = {
     getTeacherSalary,
     getSalaryPayslip,
     deleteSalary,
-}
+};
