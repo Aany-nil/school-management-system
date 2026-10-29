@@ -188,9 +188,6 @@ const deleteRoutine = async (req, res) => {
 
 
 
-
-
-
 module.exports = {
     createRoutine,
     getAllRoutine,
