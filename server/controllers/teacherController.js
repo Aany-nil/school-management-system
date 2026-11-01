@@ -1,4 +1,5 @@
 
+const Class = require("../models/Class");
 const User = require("../models/User");
 
 const getAllTeachers = async (req, res) => {
@@ -52,7 +53,6 @@ const getTeacherById = async (req, res) => {
 };
 
 
-// Admin sets or updates a teacher's fixed monthly salary
 const updateTeacherSalary = async (req, res) => {
     try {
         const { monthlySalary } = req.body;
@@ -104,8 +104,50 @@ const updateTeacherSalary = async (req, res) => {
 };
 
 
+const getMyClasses = async (req, res) => {
+
+    try {
+        const teacherId = req.user._id;
+
+        const classes = await Class.find({
+            teacherId: teacherId,
+        }).sort({ className: 1 });
+
+        const classesWithStudentCount = await Promise.all(
+            classes.map(async (classItem) => {
+                const studentCount = await User.countDocuments({
+                    role: "student",
+                    classId: classItem._id,
+                });
+
+                return {
+                    ...classItem.toObject(),
+                    studentCount,
+                };
+            })
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: "Your classes retrieved successfully",
+            count: classesWithStudentCount.length,
+            data: classesWithStudentCount,
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "Failed to retrieve your classes",
+            error: error.message,
+        });
+    }
+};
+
+
+
 module.exports = {
     getAllTeachers,
     getTeacherById,
     updateTeacherSalary,
+    getMyClasses
 };
