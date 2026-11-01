@@ -103,7 +103,7 @@ const getSingleSubject = async (req, res) => {
         }
 
         const subject = await Subject.findById(id)
-        .populate("classId", "clasName section academicYear");
+        .populate("classId", "className section academicYear");
 
         if(!subject) {
             return res.status(404).json({
@@ -197,9 +197,9 @@ const updateSubject = async (req, res) => {
     if(classId !== undefined) {
         subject.classId = classId;
     }
-    if(!description !== undefined) {
-        subject.description = description;
-    }
+   if (description !== undefined) {
+    subject.description = description;
+  }
 
     await subject.save();
 
@@ -261,10 +261,45 @@ const deleteSubject = async (req, res) => {
 }
 
 
+const getMySubjects = async (req, res) => {
+    try {
+        const teacherId = req.user._id;
+
+        const teacherClasses = await Class.find({
+            teacherId: teacherId,
+        }).select("_id");
+
+        const classIds = teacherClasses.map((item) => item._id)
+
+        const subjects = await Subject.find({
+            classId: { $in: classIds },
+        })
+            .populate("classId", "className section academicYear")
+            .sort({ subjectName: 1 });
+
+        return res.status(200).json({
+            success: true,
+            message: "Your subjects retrieved successfully",
+            count: subjects.length,
+            data: subjects,
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "Failed to retrieve your subjects",
+            error: error.message,
+        });
+    }
+};
+
+
+
 module.exports = {
     createSubject,
     getAllSubject,
     getSingleSubject,
     updateSubject,
-    deleteSubject
+    deleteSubject,
+    getMySubjects
 }

@@ -1,169 +1,279 @@
+
 const mongoose = require("mongoose");
 const User = require("../models/User");
 const Class = require("../models/Class");
-const Attendance = require("../models/Attendance");
+const Attendance = require("../models/Attendance")
+
 
 const createAttendance = async (req, res) => {
-
     try {
-       const { student, classId, date, status, remarks } = req.body;
+        const { student, classId, date, status, remarks } = req.body;
 
-       if(!student || !classId || !date || !status ) {
+        if (!student || !classId || !date || !status) {
+            return res.status(400).json({
+                success: false,
+                message: "student, classId, date and status are required",
+            });
+        }
 
-        return res.status(400).json({
-            success: false,
-            message: "student, classId, date and status are required"
+        if (
+            !mongoose.Types.ObjectId.isValid(student) ||
+            !mongoose.Types.ObjectId.isValid(classId)
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid student ID or class ID",
+            });
+        }
+
+        if (!["Present", "Absent", "Late"].includes(status)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid attendance status",
+            });
+        }
+
+        const attendanceDate = new Date(date);
+
+        if (Number.isNaN(attendanceDate.getTime())) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid attendance date",
+            });
+        }
+
+        const existingStudent = await User.findOne({
+            _id: student,
+            role: "student",
         });
-       }
 
-       if(
-        !mongoose.Types.ObjectId.isValid(student) ||
-        !mongoose.Types.ObjectId.isValid(classId)) {
-       
-        return res.status(404).json({
-            success: false,
-            message: "invalid student id and class id"
+        if (!existingStudent) {
+            return res.status(404).json({
+                success: false,
+                message: "Student not found",
+            });
+        }
+
+        const existingClass = await Class.findById(classId);
+
+        if (!existingClass) {
+            return res.status(404).json({
+                success: false,
+                message: "Class not found",
+            });
+        }
+
+        if (
+            !existingStudent.classId ||
+            existingStudent.classId.toString() !== classId
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: "Student does not belong to this class",
+            });
+        }
+
+        // Teacher can take attendance only for assigned classes
+        if (
+            req.user.role === "teacher" &&
+            existingClass.teacherId.toString() !== req.user._id.toString()
+        ) {
+            return res.status(403).json({
+                success: false,
+                message: "You are not assigned to this class",
+            });
+        }
+
+        const existingAttendance = await Attendance.findOne({
+            student,
+            classId,
+            date: attendanceDate,
         });
 
-       }
+        if (existingAttendance) {
+            return res.status(409).json({
+                success: false,
+                message: "Attendance already exists",
+            });
+        }
 
-       if(!["Present", "Absent", "Late"].includes(status)) {
-
-        return res.status(404).json({
-            success: false,
-            message: "invalid attendance status"
-        })
-       }
-
-       const existingStudent = await User.findOne({
-        _id: student,
-        role: "student"
-       });
-
-       if(!existingStudent) {
-        return res.status(404).json({
-            success: false,
-            message: "student not found"
+        const attendance = await Attendance.create({
+            student,
+            classId,
+            date: attendanceDate,
+            status,
+            remarks: remarks || "",
         });
-       }
 
-       const existingClass = await Class.findById(classId);
-
-       if(!existingClass) {
-        return res.status(404).json({
-            success: false,
-            message: "class not found"
+        return res.status(201).json({
+            success: true,
+            message: "Attendance created successfully",
+            data: attendance,
         });
-       }
-
-       const existingAttendance = await Attendance.findOne({
-        student,
-        classId,
-        date: new Date(date)
-       });
-
-       if(existingAttendance) {
-
-        return res.status(409).json({
-
-            success: false,
-            message: "attendance already exists"
-        });
-       }
-
-       const attendance = await Attendance.create({
-         student,
-         classId,
-         date: new Date(date),
-         status,
-         remarks
-
-       });
-
-      return res.status(201).json({
-        success: true,
-        message: "attendance created successfully",
-        data: attendance
-      });
 
     } catch (error) {
+        if (error.code === 11000) {
+            return res.status(409).json({
+                success: false,
+                message: "Attendance already exists for this student and date",
+            });
+        }
+
         return res.status(500).json({
             success: false,
-            message: "attendance create retrieve to failed",
-            error: error.message
+            message: "Failed to create attendance",
+            error: error.message,
         });
-
     }
-}
+};
+
 
 
 const getAllAttendance = async (req, res) => {
-
     try {
         const { classId, student, date } = req.query;
 
         const filter = {};
 
-        if(classId) {
-            
+        if (classId) {
+            if (!mongoose.Types.ObjectId.isValid(classId)) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid class ID",
+                });
+            }
+
             filter.classId = classId;
         }
 
-        if(student) {
+        if (student) {
+            if (!mongoose.Types.ObjectId.isValid(student)) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid student ID",
+                });
+            }
+
             filter.student = student;
         }
 
-       if (date) {
-              const startDate = new Date(`${date}T00:00:00.000Z`);
-              const endDate = new Date(startDate);
-              endDate.setDate(endDate.getDate() + 1); 
+        if (date) {
+            const startDate = new Date(`${date}T00:00:00.000Z`);
 
-        filter.date = {
-        $gte: startDate,$lt: endDate
+            if (Number.isNaN(startDate.getTime())) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid date",
+                });
+            }
 
-        };
-      }
+            const endDate = new Date(startDate);
+            endDate.setUTCDate(endDate.getUTCDate() + 1);
+
+            filter.date = {
+                $gte: startDate,
+                $lt: endDate,
+            };
+        }
+
+        if (req.user.role === "teacher") {
+            const teacherClasses = await Class.find({
+                teacherId: req.user._id,
+            }).select("_id");
+
+            const teacherClassIds = teacherClasses.map(
+                (item) => item._id
+            );
+
+            if (classId) {
+                const isAssigned = teacherClassIds.some(
+                    (id) => id.toString() === classId
+                );
+
+                if (!isAssigned) {
+                    return res.status(403).json({
+                        success: false,
+                        message: "You are not assigned to this class",
+                    });
+                }
+            } else {
+                filter.classId = {
+                    $in: teacherClassIds,
+                };
+            }
+        }
+
         const attendance = await Attendance.find(filter)
-
-        .populate("student", "name email")
-        .populate("classId", "className section")
-        .sort({ date: -1 });
+            .populate("student", "name email")
+            .populate("classId", "className section academicYear")
+            .sort({ date: -1 });
 
         return res.status(200).json({
             success: true,
             total: attendance.length,
-            data: attendance
-        })
-        
+            data: attendance,
+        });
+
     } catch (error) {
         return res.status(500).json({
             success: false,
-            message: "failed ot all attendance get",
-            error: error.message
+            message: "Failed to get attendance",
+            error: error.message,
         });
-        
     }
-}
+};
+
 
 const updateAttendance = async (req, res) => {
     try {
         const { id } = req.params;
         const { status, remarks } = req.body;
 
-        const attendance = await Attendance.findById(id);
-
-        if(!attendance) {
-            return res.status(404).json({
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({
                 success: false,
-                message: "attendance not found"
+                message: "Invalid attendance ID",
             });
         }
 
-        if(status) {
+        if (
+            status !== undefined &&
+            !["Present", "Absent", "Late"].includes(status)
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid attendance status",
+            });
+        }
+
+        const attendance = await Attendance.findById(id);
+
+        if (!attendance) {
+            return res.status(404).json({
+                success: false,
+                message: "Attendance not found",
+            });
+        }
+
+        if (req.user.role === "teacher") {
+            const assignedClass = await Class.findOne({
+                _id: attendance.classId,
+                teacherId: req.user._id,
+            });
+
+            if (!assignedClass) {
+                return res.status(403).json({
+                    success: false,
+                    message: "You are not allowed to update this attendance",
+                });
+            }
+        }
+
+        if (status !== undefined) {
             attendance.status = status;
         }
 
-        if(remarks !== undefined) {
+        if (remarks !== undefined) {
             attendance.remarks = remarks;
         }
 
@@ -171,80 +281,133 @@ const updateAttendance = async (req, res) => {
 
         return res.status(200).json({
             success: true,
-            message: "attendance update successfully",
-            data: attendance
+            message: "Attendance updated successfully",
+            data: attendance,
         });
-        
+
     } catch (error) {
         return res.status(500).json({
             success: false,
-            message: "attendance update to failed",
-            error: error.message
+            message: "Failed to update attendance",
+            error: error.message,
         });
-        
     }
-}
+};
+
 
 const deleteAttendance = async (req, res) => {
-
     try {
         const { id } = req.params;
 
-        if(!mongoose.Types.ObjectId.isValid(id)) {
+        if (!mongoose.Types.ObjectId.isValid(id)) {
             return res.status(400).json({
                 success: false,
-                message: "invalid attendance id"
+                message: "Invalid attendance ID",
             });
         }
 
         const attendance = await Attendance.findByIdAndDelete(id);
 
-        if(!attendance) {
+        if (!attendance) {
             return res.status(404).json({
                 success: false,
-                message: "attendance not found"
+                message: "Attendance not found",
             });
         }
 
         return res.status(200).json({
             success: true,
-            message: "attendance deleted successfully"
+            message: "Attendance deleted successfully",
         });
-               
+
     } catch (error) {
         return res.status(500).json({
             success: false,
-            message: "attendance deleted to failed",
-            error: error.message
+            message: "Failed to delete attendance",
+            error: error.message,
         });
-        
     }
-}
+};
+
+
 
 const getMyAttendance = async (req, res) => {
-
     try {
         const attendance = await Attendance.find({
-
-           student: req.user._id
-        }).populate("classId", "className section academicYear").sort({ date: -1 });
+            student: req.user._id,
+        })
+            .populate("classId", "className section academicYear")
+            .sort({ date: -1 });
 
         return res.status(200).json({
             success: true,
             total: attendance.length,
-            data: attendance
+            data: attendance,
         });
-        
+
     } catch (error) {
         return res.status(500).json({
             success: false,
-            message: "failed to get your attendance",
-            error: error.message
-
+            message: "Failed to get your attendance",
+            error: error.message,
         });
-        
     }
-}
+};
+
+
+
+const getClassStudents = async (req, res) => {
+    try {
+        const { classId } = req.query;
+
+        if (!classId || !mongoose.Types.ObjectId.isValid(classId)) {
+            return res.status(400).json({
+                success: false,
+                message: "Valid classId is required",
+            });
+        }
+
+        const classData = await Class.findById(classId);
+
+        if (!classData) {
+            return res.status(404).json({
+                success: false,
+                message: "Class not found",
+            });
+        }
+
+        if (
+            req.user.role === "teacher" &&
+            classData.teacherId.toString() !== req.user._id.toString()
+        ) {
+            return res.status(403).json({
+                success: false,
+                message: "You are not assigned to this class",
+            });
+        }
+
+        const students = await User.find({
+            role: "student",
+            classId: classId,
+        })
+            .select("name email profilePicture classId")
+            .sort({ name: 1 });
+
+        return res.status(200).json({
+            success: true,
+            total: students.length,
+            data: students,
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "Failed to get class students",
+            error: error.message,
+        });
+    }
+};
+
 
 
 module.exports = {
@@ -252,5 +415,6 @@ module.exports = {
     getAllAttendance,
     updateAttendance,
     deleteAttendance,
-    getMyAttendance
-}
+    getMyAttendance,
+    getClassStudents,
+};
