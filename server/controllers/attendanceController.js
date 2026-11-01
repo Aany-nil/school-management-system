@@ -311,6 +311,13 @@ const updateAttendance = async (req, res) => {
 
 const deleteAttendance = async (req, res) => {
     try {
+        if (req.user.role !== "admin") {
+            return res.status(403).json({
+                success: false,
+                message: "Only admin can delete attendance",
+            });
+        }
+
         const { id } = req.params;
 
         if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -332,6 +339,7 @@ const deleteAttendance = async (req, res) => {
         return res.status(200).json({
             success: true,
             message: "Attendance deleted successfully",
+            data: attendance,
         });
 
     } catch (error) {
@@ -344,7 +352,6 @@ const deleteAttendance = async (req, res) => {
         });
     }
 };
-
 
 
 const getMyAttendance = async (req, res) => {
