@@ -103,8 +103,73 @@ const getMyStudents = async (req, res) => {
 };
 
 
+const assignStudentToClass = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { classId } = req.body;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid student ID",
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(classId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid class ID",
+      });
+    }
+
+    const student = await User.findOne({
+      _id: id,
+      role: "student",
+    });
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: "Student not found",
+      });
+    }
+
+    const classData = await Class.findById(classId);
+
+    if (!classData) {
+      return res.status(404).json({
+        success: false,
+        message: "Class not found",
+      });
+    }
+
+    student.classId = classData._id;
+    await student.save();
+
+    const updatedStudent = await User.findById(student._id)
+      .select("-password")
+      .populate("classId", "className section academicYear");
+
+    return res.status(200).json({
+      success: true,
+      message: "Class assigned to student successfully",
+      data: updatedStudent,
+    });
+
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to assign class",
+      error: error.message,
+    });
+  }
+};
+
+
+
 module.exports = {
   getAllStudents,
   getStudentById,
   getMyStudents,
+  assignStudentToClass
 };

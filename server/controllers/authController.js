@@ -1,6 +1,8 @@
 const { signAccessToken } = require("../helpers/tokenHelpers");
 const User = require("../models/User");
 
+
+
 const registration = async (req, res) => {
     try {
         const { name, email, password } = req.body;
@@ -36,7 +38,8 @@ const registration = async (req, res) => {
             name: name.trim(),
             email: normalizedEmail,
             password,
-            role: "student"
+            role: "student",
+            classId: null,
         });
 
         const token = signAccessToken(user._id, user.role);
