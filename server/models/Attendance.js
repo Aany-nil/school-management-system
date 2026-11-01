@@ -25,11 +25,10 @@ const attendanceSchema = new mongoose.Schema({
         default: "Present"
     },
 
-    remarks: {
-        type: String,
-        required: true,
-        default: ""
-    }
+   remarks: {
+       type: String,
+       default: ""
+}
    
 },
   {

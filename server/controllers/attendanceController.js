@@ -2,7 +2,8 @@
 const mongoose = require("mongoose");
 const User = require("../models/User");
 const Class = require("../models/Class");
-const Attendance = require("../models/Attendance")
+const Attendance = require("../models/Attendance");
+
 
 
 const createAttendance = async (req, res) => {
@@ -63,9 +64,10 @@ const createAttendance = async (req, res) => {
             });
         }
 
+        
         if (
             !existingStudent.classId ||
-            existingStudent.classId.toString() !== classId
+            existingStudent.classId.toString() !== classId.toString()
         ) {
             return res.status(400).json({
                 success: false,
@@ -73,17 +75,20 @@ const createAttendance = async (req, res) => {
             });
         }
 
-        // Teacher can take attendance only for assigned classes
-        if (
-            req.user.role === "teacher" &&
-            existingClass.teacherId.toString() !== req.user._id.toString()
-        ) {
-            return res.status(403).json({
-                success: false,
-                message: "You are not assigned to this class",
-            });
+
+        if (req.user.role === "teacher") {
+            if (
+                !existingClass.teacherId ||
+                existingClass.teacherId.toString() !== req.user._id.toString()
+            ) {
+                return res.status(403).json({
+                    success: false,
+                    message: "You are not assigned to this class",
+                });
+            }
         }
 
+        
         const existingAttendance = await Attendance.findOne({
             student,
             classId,
@@ -112,6 +117,8 @@ const createAttendance = async (req, res) => {
         });
 
     } catch (error) {
+        console.error("CREATE ATTENDANCE ERROR:", error);
+
         if (error.code === 11000) {
             return res.status(409).json({
                 success: false,
@@ -176,6 +183,7 @@ const getAllAttendance = async (req, res) => {
             };
         }
 
+    
         if (req.user.role === "teacher") {
             const teacherClasses = await Class.find({
                 teacherId: req.user._id,
@@ -187,7 +195,7 @@ const getAllAttendance = async (req, res) => {
 
             if (classId) {
                 const isAssigned = teacherClassIds.some(
-                    (id) => id.toString() === classId
+                    (id) => id.toString() === classId.toString()
                 );
 
                 if (!isAssigned) {
@@ -215,6 +223,8 @@ const getAllAttendance = async (req, res) => {
         });
 
     } catch (error) {
+        console.error("GET ALL ATTENDANCE ERROR:", error);
+
         return res.status(500).json({
             success: false,
             message: "Failed to get attendance",
@@ -255,6 +265,7 @@ const updateAttendance = async (req, res) => {
             });
         }
 
+    
         if (req.user.role === "teacher") {
             const assignedClass = await Class.findOne({
                 _id: attendance.classId,
@@ -286,6 +297,8 @@ const updateAttendance = async (req, res) => {
         });
 
     } catch (error) {
+        console.error("UPDATE ATTENDANCE ERROR:", error);
+
         return res.status(500).json({
             success: false,
             message: "Failed to update attendance",
@@ -293,6 +306,7 @@ const updateAttendance = async (req, res) => {
         });
     }
 };
+
 
 
 const deleteAttendance = async (req, res) => {
@@ -321,6 +335,8 @@ const deleteAttendance = async (req, res) => {
         });
 
     } catch (error) {
+        console.error("DELETE ATTENDANCE ERROR:", error);
+
         return res.status(500).json({
             success: false,
             message: "Failed to delete attendance",
@@ -346,6 +362,8 @@ const getMyAttendance = async (req, res) => {
         });
 
     } catch (error) {
+        console.error("GET MY ATTENDANCE ERROR:", error);
+
         return res.status(500).json({
             success: false,
             message: "Failed to get your attendance",
@@ -353,7 +371,6 @@ const getMyAttendance = async (req, res) => {
         });
     }
 };
-
 
 
 const getClassStudents = async (req, res) => {
@@ -376,14 +393,17 @@ const getClassStudents = async (req, res) => {
             });
         }
 
-        if (
-            req.user.role === "teacher" &&
-            classData.teacherId.toString() !== req.user._id.toString()
-        ) {
-            return res.status(403).json({
-                success: false,
-                message: "You are not assigned to this class",
-            });
+  
+        if (req.user.role === "teacher") {
+            if (
+                !classData.teacherId ||
+                classData.teacherId.toString() !== req.user._id.toString()
+            ) {
+                return res.status(403).json({
+                    success: false,
+                    message: "You are not assigned to this class",
+                });
+            }
         }
 
         const students = await User.find({
@@ -400,6 +420,8 @@ const getClassStudents = async (req, res) => {
         });
 
     } catch (error) {
+        console.error("GET CLASS STUDENTS ERROR:", error);
+
         return res.status(500).json({
             success: false,
             message: "Failed to get class students",
@@ -407,7 +429,6 @@ const getClassStudents = async (req, res) => {
         });
     }
 };
-
 
 
 module.exports = {
