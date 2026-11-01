@@ -53,7 +53,7 @@ const getAllRoutine = async (req, res) => {
     try {
         const routines = await Routine.find()
         .populate("classId", "className section")
-        .populate("subjectId", "subjectName, subjectCode")
+        .populate("subjectId", "subjectName subjectCode")
         .populate("teacherId", "name email");
 
         return res.status(200).json({
@@ -163,7 +163,7 @@ const deleteRoutine = async (req, res) => {
         const routine = await Routine.findByIdAndDelete(id);
 
         if(!routine) {
-            res.status(404).json({
+            return res.status(404).json({
                 success: false,
                 message: "routine not found"
             });
@@ -184,7 +184,32 @@ const deleteRoutine = async (req, res) => {
     }
 }
 
+const getMyRoutine = async (req, res) => {
 
+    try {
+        const teacherId = req.user._id;
+
+        const routines = await Routine.find({ teacherId })
+            .populate("classId", "className section academicYear")
+            .populate("subjectId", "subjectName subjectCode")
+            .populate("teacherId", "name email")
+            .sort({ day: 1, startTime: 1 });
+
+        return res.status(200).json({
+            success: true,
+            total: routines.length,
+            message: "My routines retrieved successfully",
+            data: routines
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: "Failed to retrieve my routines",
+            error: error.message
+        });
+    }
+};
 
 
 
@@ -193,5 +218,6 @@ module.exports = {
     getAllRoutine,
     getSingleRoutine,
     updateRoutine,
-    deleteRoutine
+    deleteRoutine,
+    getMyRoutine
 }
