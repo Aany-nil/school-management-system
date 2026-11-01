@@ -7,6 +7,7 @@ const {
     getTeacherById,
     updateTeacherSalary,
 } = require("../../controllers/teacherController");
+const { getMyStudents } = require("../../controllers/studentController");
 
 const router = express.Router();
 
@@ -32,6 +33,13 @@ router.patch(
     protect,
     requireRole("admin"),
     updateTeacherSalary
+);
+
+router.get(
+  "/my-students",
+  protect,
+  requireRole("teacher"),
+  getMyStudents
 );
 
 module.exports = router;

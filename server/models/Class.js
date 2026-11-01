@@ -16,6 +16,11 @@ const classSchema = mongoose.Schema({
         type: Number,
         required: [true, "academic year is required"]
     },
+     teacherId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        required: [true, "teacher is required"]
+    }
 
 
 },
