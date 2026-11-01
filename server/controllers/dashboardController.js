@@ -101,47 +101,57 @@ const getAdminDashboard = async (req, res) => {
 };
 
 const getTeacherDashboard = async (req, res) => {
-
   try {
-    const teacher = await User.findOne({
-      _id: req.user._id,
-      role: "teacher",
-    }).select("-password");
+    const teacherId = req.user._id;
 
-    if (!teacher) {
-      return res.status(404).json({
-        success: false,
-        message: "Teacher not found",
-      });
-    }
+    const teacherClasses = await Class.find({
+      teacherId: teacherId,
+    }).select("_id className section academicYear");
 
-    const totalClasses = await Class.countDocuments();
-    const totalSubjects = await Subject.countDocuments();
+    const classIds = teacherClasses.map((item) => item._id);
+    const totalStudents = await User.countDocuments({
+      role: "student",
+      classId: { $in: classIds },
+    });
+
+    const totalSubjects = await Subject.countDocuments({
+      classId: { $in: classIds },
+    });
+
+    const totalClasses = teacherClasses.length;
+
+    const profile = await User.findById(teacherId).select(
+      "name email profilePicture address bio monthlySalary"
+    );
 
     const recentNotices = await Notice.find({
       targetRole: { $in: ["all", "teacher"] },
     })
-      .sort({ createdAt: -1 })
+      .sort({ publishDate: -1 })
       .limit(5);
 
     return res.status(200).json({
       success: true,
-      message: "Teacher dashboard retrieved successfully",
+      message: "Teacher dashboard data fetched successfully",
       data: {
-        profile: teacher,
+        profile,
+        totalStudents,
         totalClasses,
         totalSubjects,
         recentNotices,
       },
     });
   } catch (error) {
+    console.error("Teacher Dashboard Error:", error);
+
     return res.status(500).json({
       success: false,
-      message: "Failed to retrieve teacher dashboard",
+      message: "Failed to load teacher dashboard",
       error: error.message,
     });
   }
 };
+
 
 const getStudentDashboard = async (req, res) => {
   try {
