@@ -9,8 +9,8 @@ const upload = require("../../middlewares/uploadMiddleware");
 
 
 
-router.get("/profile", protect, getMyProfile);
-router.put("/update-profile", protect, updateMyProfile);
+router.get("/", protect, getMyProfile);
+router.put("/", protect, updateMyProfile);
 router.post("/upload-picture", protect, upload.single("profilePicture"), uploadProfilePicture);
 
 
