@@ -160,7 +160,7 @@ const assignStudentToClass = async (req, res) => {
       { _id: classId },
       { $inc: { nextRollNumber: 1 } },
       {
-        new: true,
+        returnDocument: "after",
         runValidators: true,
       }
     );
