@@ -1,3 +1,4 @@
+
 const Attendance = require("../models/Attendance");
 const Class = require("../models/Class");
 const Fee = require("../models/Fee");
@@ -6,6 +7,9 @@ const Result = require("../models/Result");
 const Salary = require("../models/Salary");
 const Subject = require("../models/Subject");
 const User = require("../models/User");
+
+
+
 
 const getAdminDashboard = async (req, res) => {
   try {
@@ -17,8 +21,10 @@ const getAdminDashboard = async (req, res) => {
     const totalResults = await Result.countDocuments();
     const totalNotices = await Notice.countDocuments();
 
+
     const fees = await Fee.find();
     const salaries = await Salary.find();
+    
 
     let totalFee = 0;
     let paidFee = 0;
@@ -92,6 +98,8 @@ const getAdminDashboard = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error("Admin Dashboard Error:", error);
+
     return res.status(500).json({
       success: false,
       message: "Failed to retrieve admin dashboard",
@@ -100,15 +108,19 @@ const getAdminDashboard = async (req, res) => {
   }
 };
 
+
+
+
 const getTeacherDashboard = async (req, res) => {
   try {
     const teacherId = req.user._id;
 
     const teacherClasses = await Class.find({
-      teacherId: teacherId,
+      teacherId,
     }).select("_id className section academicYear");
 
     const classIds = teacherClasses.map((item) => item._id);
+
     const totalStudents = await User.countDocuments({
       role: "student",
       classId: { $in: classIds },
@@ -153,14 +165,19 @@ const getTeacherDashboard = async (req, res) => {
 };
 
 
+
+
 const getStudentDashboard = async (req, res) => {
   try {
     const studentId = req.user._id;
 
+    // Get Student Profile with Roll Number and Class Information
     const student = await User.findOne({
       _id: studentId,
       role: "student",
-    }).select("-password");
+    })
+      .select("-password")
+      .populate("classId", "className section academicYear");
 
     if (!student) {
       return res.status(404).json({
@@ -169,7 +186,10 @@ const getStudentDashboard = async (req, res) => {
       });
     }
 
-    const fees = await Fee.find({ student: studentId });
+    // Fee Summary
+    const fees = await Fee.find({
+      student: studentId,
+    });
 
     let totalFee = 0;
     let paidFee = 0;
@@ -181,6 +201,7 @@ const getStudentDashboard = async (req, res) => {
       dueFee += fee.dueAmount || 0;
     }
 
+    // Attendance Summary
     const present = await Attendance.countDocuments({
       student: studentId,
       status: "Present",
@@ -196,11 +217,15 @@ const getStudentDashboard = async (req, res) => {
       status: "Late",
     });
 
-    const results = await Result.find({ studentId })
-      .populate("classId", "name")
+    // Student Results
+    const results = await Result.find({
+      studentId,
+    })
+      .populate("classId", "className section academicYear")
       .populate("subjectId", "subjectName")
       .sort({ createdAt: -1 });
 
+    // Recent Notices
     const recentNotices = await Notice.find({
       targetRole: { $in: ["all", "student"] },
     })
@@ -210,6 +235,7 @@ const getStudentDashboard = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Student dashboard retrieved successfully",
+
       data: {
         profile: student,
 
@@ -230,6 +256,8 @@ const getStudentDashboard = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error("Student Dashboard Error:", error);
+
     return res.status(500).json({
       success: false,
       message: "Failed to retrieve student dashboard",
@@ -239,8 +267,10 @@ const getStudentDashboard = async (req, res) => {
 };
 
 
+
+
 module.exports = {
-    getAdminDashboard,
-    getTeacherDashboard,
-    getStudentDashboard
-}
+  getAdminDashboard,
+  getTeacherDashboard,
+  getStudentDashboard,
+};

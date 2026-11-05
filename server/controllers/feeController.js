@@ -1,121 +1,179 @@
 const Fee = require("../models/Fee");
 const User = require("../models/User");
 
+// Reusable student population
+const populateStudent = (query) => {
+  return query.populate({
+    path: "student",
+    select: "name email role rollNumber classId",
+    populate: {
+      path: "classId",
+      select: "className section academicYear",
+    },
+  });
+};
+
+// CREATE FEE
 const createFee = async (req, res) => {
-    try {
-      const { student, totalFee, paidAmount=0 } = req.body;
+  try {
+    const {
+      student,
+      feeType = "Tuition Fee",
+      totalFee,
+      paidAmount = 0,
+      paymentMethod = "Cash",
+    } = req.body;
 
-      const studentInfo = await User.findById(student);
-      
-      if(!studentInfo || studentInfo.role !== "student") {
-        return res.status(404).json({
-            success: false,
-            message: "student not found",
-        });
-      }
-
-      if (totalFee < 0 || paidAmount < 0) {
+    if (!student || totalFee === undefined) {
       return res.status(400).json({
         success: false,
-        message: "fee amount cannot be negative",
+        message: "Student and total fee are required",
       });
     }
 
-      if(paidAmount > totalFee) {
-        return res.status(400).json({
-            success: false,
-            message: "paid amount cannot be greater than total fee"
-        })
-      }
+    const studentInfo = await User.findById(student);
 
-      const dueAmount = totalFee - paidAmount;
-
-      let status = "Due";
-
-      if(paidAmount === totalFee) {
-        status = "Paid"
-      } else if(paidAmount > 0 ) {
-        status = "Partial"
-      }
-
-      const fee = await Fee.create({
-        student,
-        totalFee,
-        paidAmount,
-        dueAmount,
-        status
-      });
-
-      return res.status(201).json({
-        success: true,
-        message: "fee created successfully",
-        data: fee,
-      });
-
-    } catch (error) {
-      return res.status(500).json({
+    if (!studentInfo || studentInfo.role !== "student") {
+      return res.status(404).json({
         success: false,
-        message: "failed to create fee",
-        error: error.message
+        message: "Student not found",
       });
     }
-}
 
-const getAllfees = async (req, res) => {
-    try {
-        const fees = await Fee.find()
-        .populate("student", "name email role")
-        .sort({ createdAt: -1 });
+    const total = Number(totalFee);
+    const paid = Number(paidAmount);
 
-        return res.status(200).json({
-            success: true,
-            message: "fees record successfully",
-            data: {
-                fees,
-                count: fees.length,
-            }
-        })
-    } catch (error) {
-        return res.status(500).json({
-            success: false,
-            message: "fees record retrive failed",
-            error: error.message,
-        });
-        
+    if (
+      !Number.isFinite(total) ||
+      !Number.isFinite(paid) ||
+      total < 0 ||
+      paid < 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid fee amount",
+      });
     }
-}
 
-const getStudentFee = async (req, res) => {
-  try {
-    const studentfees = await Fee.findOne({
-      student: req.user._id,
-    }).populate("student", "name email");
+    if (paid > total) {
+      return res.status(400).json({
+        success: false,
+        message: "Paid amount cannot be greater than total fee",
+      });
+    }
 
-    return res.status(200).json({
-      success: true,
-      message: studentfees
-        ? "student fees retrieved successfully"
-        : "No fee record found",
-      data: studentfees,
+    const allowedMethods = [
+      "Cash",
+      "Bank Transfer",
+      "Mobile Banking",
+      "Card",
+      "Other",
+    ];
+
+    if (!allowedMethods.includes(paymentMethod)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid payment method",
+      });
+    }
+
+    const dueAmount = total - paid;
+
+    let status = "Due";
+
+    if (dueAmount === 0) {
+      status = "Paid";
+    } else if (paid > 0) {
+      status = "Partial";
+    }
+
+    const fee = await Fee.create({
+      student,
+      feeType: feeType.trim() || "Tuition Fee",
+      totalFee: total,
+      paidAmount: paid,
+      dueAmount,
+      paymentMethod,
+      status,
     });
 
+    const populatedFee = await populateStudent(
+      Fee.findById(fee._id)
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: "Fee created successfully",
+      data: populatedFee,
+    });
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: "failed to retrieve your fees",
+      message: "Failed to create fee",
       error: error.message,
     });
   }
 };
 
+// GET ALL FEES (ADMIN)
+const getAllfees = async (req, res) => {
+  try {
+    const fees = await populateStudent(
+      Fee.find()
+    ).sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      message: "Fee records retrieved successfully",
+      data: {
+        fees,
+        count: fees.length,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to retrieve fee records",
+      error: error.message,
+    });
+  }
+};
+
+// GET LOGGED-IN STUDENT'S FEES
+const getStudentFee = async (req, res) => {
+  try {
+    const studentFees = await populateStudent(
+      Fee.find({
+        student: req.user._id,
+      })
+    ).sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      message: studentFees.length
+        ? "Student fees retrieved successfully"
+        : "No fee record found",
+      data: studentFees,
+      count: studentFees.length,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to retrieve your fees",
+      error: error.message,
+    });
+  }
+};
+
+// DELETE FEE
 const deleteFee = async (req, res) => {
   try {
     const fee = await Fee.findById(req.params.id);
 
-    if(!fee) {
+    if (!fee) {
       return res.status(404).json({
         success: false,
-        message: "fee not found"
+        message: "Fee not found",
       });
     }
 
@@ -123,23 +181,20 @@ const deleteFee = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "fee deleted successfully"
+      message: "Fee deleted successfully",
     });
-
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: "fee deleted to failed",
+      message: "Failed to delete fee",
       error: error.message,
     });
-    
   }
-}
+};
 
-
-module.exports = { 
-    createFee,
-    getAllfees,
-    getStudentFee,
-    deleteFee, 
-}
+module.exports = {
+  createFee,
+  getAllfees,
+  getStudentFee,
+  deleteFee,
+};

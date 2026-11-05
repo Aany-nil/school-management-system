@@ -1,41 +1,125 @@
 const User = require("../models/User");
+const Class = require("../models/Class");
+const Subject = require("../models/Subject");
 
 function formatUser(user) {
+
     return {
-        id: user._id,
+         id: user._id,
+        _id: user._id,
         name: user.name,
         email: user.email,
         profilePicture: user.profilePicture,
         bio: user.bio,
         address: user.address,
         role: user.role,
+        monthlySalary: Number(user.monthlySalary || 0),
         createdAt: user.createdAt,
     };
 }
 
 const getTeachers = async (req, res) => {
-    try {
-       const teachers = await User.find({
-         role: "teacher"
-       }).sort({ createdAt: -1 });
 
-       return res.status(200).json({
-        success: true,
-        message: "teacher retrive successfully",
-        data: {
-            teachers: teachers.map(formatUser),
-            count: teachers.length,
-        }
-       });
-        
+    try {
+
+        const teachers = await User.find({
+            role: "teacher"
+        })
+            .select("name email role profilePicture bio address monthlySalary createdAt")
+            .sort({ createdAt: -1 })
+            .lean();
+
+        const teacherIds = teachers.map(teacher => teacher._id);
+
+        const classes = await Class.find({
+            teacherId: { $in: teacherIds }
+        })
+            .select("className section academicYear teacherId")
+            .lean();
+
+        const classIds = classes.map(item => item._id);
+
+        const subjects = await Subject.find({
+            classId: { $in: classIds }
+        })
+            .select("subjectName subjectCode classId")
+            .lean();
+
+        const subjectsByClass = {};
+
+        subjects.forEach(subject => {
+            const classId = subject.classId.toString();
+
+            if (!subjectsByClass[classId]) {
+                subjectsByClass[classId] = [];
+            }
+
+            subjectsByClass[classId].push({
+                _id: subject._id,
+                subjectName: subject.subjectName,
+                subjectCode: subject.subjectCode || ""
+            });
+        });
+
+        const classesByTeacher = {};
+
+        classes.forEach(item => {
+            const teacherId = item.teacherId.toString();
+
+            if (!classesByTeacher[teacherId]) {
+                classesByTeacher[teacherId] = [];
+            }
+
+            classesByTeacher[teacherId].push({
+                _id: item._id,
+                className: item.className,
+                section: item.section,
+                academicYear: item.academicYear,
+                subjects: subjectsByClass[item._id.toString()] || []
+            });
+        });
+
+        const teacherList = teachers.map(teacher => {
+            const assignedClasses =
+                classesByTeacher[teacher._id.toString()] || [];
+
+            const allSubjects = [
+                ...new Map(
+                    assignedClasses
+                        .flatMap(item => item.subjects)
+                        .map(subject => [
+                            subject._id.toString(),
+                            subject
+                        ])
+                ).values()
+            ];
+
+            return {
+                ...formatUser(teacher),
+                assignedClasses,
+                assignedSubjects: allSubjects
+            };
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: "Teachers retrieved successfully",
+            data: {
+                teachers: teacherList,
+                count: teacherList.length
+            }
+        });
+
     } catch (error) {
+        console.error("Get teachers error:", error);
+
         return res.status(500).json({
             success: false,
-            message: "teacher retrive failed",
+            message: "Failed to retrieve teachers",
             error: error.message
-        });    
+        });
     }
-}
+};
 
 const getStudents = async (req, res) => {
     try {
@@ -63,6 +147,7 @@ const getStudents = async (req, res) => {
 }
 
 const getAllUsers = async (req, res) => {
+
     try {
        const { role } = req.query;
        const filter = {};

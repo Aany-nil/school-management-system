@@ -2,16 +2,26 @@
 const User = require("../models/User");
 const cloudinary = require("../configaration/cloudinary");
 
-// Fields returned in the authenticated user's own profile
+// Common profile fields
 const profileFields =
-  "name email role profilePicture bio address classId " +
+  "name email role profilePicture bio address classId rollNumber monthlySalary " +
   "fatherName motherName phone dateOfBirth bloodGroup religion " +
   "presentAddress permanentAddress +nidNumber";
+
+// Populate class information for students
+const populateClass = (query) => {
+  return query.populate(
+    "classId",
+    "className section academicYear"
+  );
+};
 
 // Get My Profile
 const getMyProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select(profileFields);
+    const user = await populateClass(
+      User.findById(req.user._id).select(profileFields)
+    );
 
     if (!user) {
       return res.status(404).json({
@@ -52,7 +62,9 @@ const updateMyProfile = async (req, res) => {
       nidNumber,
     } = req.body;
 
-    const user = await User.findById(req.user._id).select("+nidNumber");
+    const user = await User.findById(req.user._id).select(
+      "+nidNumber"
+    );
 
     if (!user) {
       return res.status(404).json({
@@ -61,31 +73,28 @@ const updateMyProfile = async (req, res) => {
       });
     }
 
-    // Name Validation
+    // Name
     if (name !== undefined) {
-      if (typeof name !== "string" || !name.trim()) {
+      if (
+        typeof name !== "string" ||
+        !name.trim() ||
+        name.trim().length > 30
+      ) {
         return res.status(400).json({
           success: false,
-          message: "Name cannot be empty",
-        });
-      }
-
-      if (name.trim().length > 30) {
-        return res.status(400).json({
-          success: false,
-          message: "Name cannot exceed 30 characters",
+          message: "Name must be between 1 and 30 characters",
         });
       }
 
       user.name = name.trim();
     }
 
-    // Email Validation
+    // Email
     if (email !== undefined) {
       if (typeof email !== "string" || !email.trim()) {
         return res.status(400).json({
           success: false,
-          message: "Email cannot be empty",
+          message: "Please provide a valid email",
         });
       }
 
@@ -108,7 +117,10 @@ const updateMyProfile = async (req, res) => {
 
     // Bio
     if (bio !== undefined) {
-      if (typeof bio !== "string" || bio.length > 500) {
+      if (
+        typeof bio !== "string" ||
+        bio.length > 500
+      ) {
         return res.status(400).json({
           success: false,
           message: "Bio cannot exceed 500 characters",
@@ -118,9 +130,12 @@ const updateMyProfile = async (req, res) => {
       user.bio = bio.trim();
     }
 
-    // Old Address Field (Backward Compatibility)
+    // Address
     if (address !== undefined) {
-      if (typeof address !== "string" || address.length > 200) {
+      if (
+        typeof address !== "string" ||
+        address.length > 200
+      ) {
         return res.status(400).json({
           success: false,
           message: "Address cannot exceed 200 characters",
@@ -130,7 +145,7 @@ const updateMyProfile = async (req, res) => {
       user.address = address.trim();
     }
 
-    // Personal Information Fields
+    // Personal Information
     const textFields = {
       fatherName: 50,
       motherName: 50,
@@ -145,22 +160,23 @@ const updateMyProfile = async (req, res) => {
       if (req.body[field] !== undefined) {
         const value = req.body[field];
 
-        if (typeof value !== "string") {
+        if (
+          typeof value !== "string" ||
+          value.trim().length > maxLength
+        ) {
           return res.status(400).json({
             success: false,
-            message: `${field} must be a string`,
-          });
-        }
-
-        if (value.trim().length > maxLength) {
-          return res.status(400).json({
-            success: false,
-            message: `${field} cannot exceed ${maxLength} characters`,
+            message: `${field} must be a valid string with maximum ${maxLength} characters`,
           });
         }
 
         user[field] = value.trim();
       }
+    }
+
+    // Present address backward compatibility
+    if (presentAddress !== undefined) {
+      user.address = presentAddress.trim();
     }
 
     // Date of Birth
@@ -217,7 +233,9 @@ const updateMyProfile = async (req, res) => {
 
     await user.save();
 
-    const updatedUser = await User.findById(user._id).select(profileFields);
+    const updatedUser = await populateClass(
+      User.findById(user._id).select(profileFields)
+    );
 
     res.status(200).json({
       success: true,
@@ -266,12 +284,11 @@ const uploadProfilePicture = async (req, res) => {
         profilePicture: result.secure_url,
       },
       {
-        new: true,
+        returnDocument: "after",
         runValidators: true,
       }
-    ).select(
-      "name email role profilePicture bio address fatherName motherName phone dateOfBirth bloodGroup religion presentAddress permanentAddress"
-    );
+    )
+      .select(profileFields);
 
     if (!user) {
       return res.status(404).json({
@@ -279,6 +296,11 @@ const uploadProfilePicture = async (req, res) => {
         message: "User not found",
       });
     }
+
+    await user.populate(
+      "classId",
+      "className section academicYear"
+    );
 
     res.status(200).json({
       success: true,

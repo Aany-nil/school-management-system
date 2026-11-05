@@ -5,14 +5,15 @@ const Class = require("../models/Class");
 const Subject = require("../models/Subject");
 const User = require("../models/User");
 
+
+
 const populateRoutine = (query) => {
     return query
         .populate("classId", "className section academicYear")
         .populate("subjectId", "subjectName subjectCode")
         .populate("teacherId", "name email");
-};
+}
 
-// Create Routine - Admin only
 const createRoutine = async (req, res) => {
     try {
         const { classId, subjectId, teacherId, day, startTime, endTime } = req.body;
@@ -60,7 +61,6 @@ const createRoutine = async (req, res) => {
             });
         }
 
-        // Subject must belong to the selected Class
         if (selectedSubject.classId.toString() !== classId) {
             return res.status(400).json({
                 success: false,
@@ -68,7 +68,6 @@ const createRoutine = async (req, res) => {
             });
         }
 
-        // Teacher must be assigned to the selected Class
         if (!selectedClass.teacherId ||
             selectedClass.teacherId.toString() !== teacherId) {
             return res.status(400).json({
@@ -106,7 +105,6 @@ const createRoutine = async (req, res) => {
 };
 
 
-// Get Routines according to logged-in user's role
 const getAllRoutine = async (req, res) => {
     try {
         const userId = req.user._id;
@@ -114,12 +112,10 @@ const getAllRoutine = async (req, res) => {
 
         let filter = {};
 
-        // Admin can see all routines
         if (role === "admin") {
             filter = {};
         }
 
-        // Teacher can see routines of assigned classes only
         else if (role === "teacher") {
             const teacherClasses = await Class.find({
                 teacherId: userId
@@ -141,7 +137,6 @@ const getAllRoutine = async (req, res) => {
             };
         }
 
-        // Student can see own assigned class routine only
         else if (role === "student") {
             const student = await User.findOne({
                 _id: userId,
@@ -155,7 +150,6 @@ const getAllRoutine = async (req, res) => {
                 });
             }
 
-            // Newly registered student may not have a class yet
             if (!student.classId) {
                 return res.status(200).json({
                     success: true,
@@ -198,7 +192,6 @@ const getAllRoutine = async (req, res) => {
 };
 
 
-// Get Single Routine
 const getSingleRoutine = async (req, res) => {
     try {
         const { id } = req.params;
@@ -250,7 +243,6 @@ const getSingleRoutine = async (req, res) => {
 };
 
 
-// Update Routine - Admin only
 const updateRoutine = async (req, res) => {
     try {
         const { id } = req.params;
@@ -370,7 +362,6 @@ const updateRoutine = async (req, res) => {
 };
 
 
-// Delete Routine - Admin only
 const deleteRoutine = async (req, res) => {
     try {
         const { id } = req.params;
@@ -407,7 +398,6 @@ const deleteRoutine = async (req, res) => {
 };
 
 
-// Teacher's own routines
 const getMyRoutine = async (req, res) => {
     try {
         const teacherId = req.user._id;
