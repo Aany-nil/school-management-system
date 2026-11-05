@@ -255,10 +255,40 @@ const updateAdminPassword = async (req, res) => {
   }
 };
 
+// Get School Information (Admin, Teacher, Student)
+const getSchoolInfo = async (req, res) => {
+  try {
+    const settings = await Setting.findOne().select(
+      "schoolName schoolLogo schoolAddress schoolEmail schoolPhone academicYear currentSession"
+    );
+
+    if (!settings) {
+      return res.status(404).json({
+        success: false,
+        message: "School information not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "School information fetched successfully",
+      data: {
+        school: settings,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 
 module.exports = {
   getSettings,
   updateSettings,
   updateAdminProfile,
   updateAdminPassword,
+  getSchoolInfo
 };
