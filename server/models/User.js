@@ -1,4 +1,3 @@
-
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
 
@@ -125,6 +124,11 @@ const userSchema = new mongoose.Schema(
       default: null,
     },
 
+    rollNumber: {
+      type: String,
+      trim: true,
+    },
+
     // Teacher Information
     monthlySalary: {
       type: Number,
@@ -134,6 +138,18 @@ const userSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
+  }
+);
+
+// Unique roll number inside each Class + Section
+userSchema.index(
+  { classId: 1, rollNumber: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      role: "student",
+      rollNumber: { $type: "string" },
+    },
   }
 );
 
