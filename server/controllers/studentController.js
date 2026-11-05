@@ -2,9 +2,7 @@ const mongoose = require("mongoose");
 const User = require("../models/User");
 const Class = require("../models/Class");
 
-
-
-
+// Get All Students
 const getAllStudents = async (req, res) => {
   try {
     const students = await User.find({ role: "student" })
@@ -18,7 +16,6 @@ const getAllStudents = async (req, res) => {
       count: students.length,
       data: students,
     });
-
   } catch (error) {
     return res.status(500).json({
       success: false,
@@ -28,7 +25,7 @@ const getAllStudents = async (req, res) => {
   }
 };
 
-
+// Get Student By ID
 const getStudentById = async (req, res) => {
   try {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
@@ -57,7 +54,6 @@ const getStudentById = async (req, res) => {
       message: "Student retrieved successfully",
       data: student,
     });
-
   } catch (error) {
     return res.status(500).json({
       success: false,
@@ -67,13 +63,13 @@ const getStudentById = async (req, res) => {
   }
 };
 
-
+// Get Teacher's Students
 const getMyStudents = async (req, res) => {
   try {
     const teacherId = req.user._id;
 
     const classes = await Class.find({
-      teacherId: teacherId,
+      teacherId,
     }).select("_id");
 
     const classIds = classes.map((classItem) => classItem._id);
@@ -92,7 +88,6 @@ const getMyStudents = async (req, res) => {
       count: students.length,
       data: students,
     });
-
   } catch (error) {
     return res.status(500).json({
       success: false,
@@ -102,7 +97,7 @@ const getMyStudents = async (req, res) => {
   }
 };
 
-
+// Assign Student To Class + Generate Roll Number
 const assignStudentToClass = async (req, res) => {
   try {
     const { id } = req.params;
@@ -143,7 +138,46 @@ const assignStudentToClass = async (req, res) => {
       });
     }
 
-    student.classId = classData._id;
+    // Same class and already has roll: keep the existing roll
+    if (
+      student.classId &&
+      student.classId.toString() === classId &&
+      student.rollNumber
+    ) {
+      const existingStudent = await User.findById(student._id)
+        .select("-password")
+        .populate("classId", "className section academicYear");
+
+      return res.status(200).json({
+        success: true,
+        message: "Student is already assigned to this class",
+        data: existingStudent,
+      });
+    }
+
+    // Atomically increase the class-section counter
+    const updatedClass = await Class.findOneAndUpdate(
+      { _id: classId },
+      { $inc: { nextRollNumber: 1 } },
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
+
+    if (!updatedClass) {
+      return res.status(404).json({
+        success: false,
+        message: "Class not found",
+      });
+    }
+
+    // Format: 01, 02, 03...
+    const newRollNumber = String(updatedClass.nextRollNumber).padStart(2, "0");
+
+    student.classId = updatedClass._id;
+    student.rollNumber = newRollNumber;
+
     await student.save();
 
     const updatedStudent = await User.findById(student._id)
@@ -152,11 +186,12 @@ const assignStudentToClass = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Class assigned to student successfully",
+      message: "Class assigned and roll number generated successfully",
       data: updatedStudent,
     });
-
   } catch (error) {
+    console.error("Assign student error:", error);
+
     return res.status(500).json({
       success: false,
       message: "Failed to assign class",
@@ -165,11 +200,9 @@ const assignStudentToClass = async (req, res) => {
   }
 };
 
-
-
 module.exports = {
   getAllStudents,
   getStudentById,
   getMyStudents,
-  assignStudentToClass
+  assignStudentToClass,
 };
