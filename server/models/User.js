@@ -1,9 +1,9 @@
+
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
 
 const userSchema = new mongoose.Schema(
   {
-    // Basic Information
     name: {
       type: String,
       required: [true, "Name is required"],
@@ -13,7 +13,7 @@ const userSchema = new mongoose.Schema(
 
     role: {
       type: String,
-      enum: ["admin", "teacher", "student"],
+      enum: ["superadmin", "admin", "teacher", "student"],
       default: "student",
       required: [true, "Role is required"],
     },
@@ -37,7 +37,15 @@ const userSchema = new mongoose.Schema(
       select: false,
     },
 
-    // Profile Information
+  
+
+    schoolId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "School",
+      default: null,
+      index: true,
+    },
+
     profilePicture: {
       type: String,
       default: "",
@@ -55,7 +63,7 @@ const userSchema = new mongoose.Schema(
       maxlength: [200, "Address cannot exceed 200 characters"],
     },
 
-    // Personal Information
+
     fatherName: {
       type: String,
       trim: true,
@@ -117,7 +125,6 @@ const userSchema = new mongoose.Schema(
       maxlength: [30, "NID number cannot exceed 30 characters"],
     },
 
-    // Student Information
     classId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Class",
@@ -129,7 +136,6 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
 
-    // Teacher Information
     monthlySalary: {
       type: Number,
       min: 0,
@@ -141,19 +147,19 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-// Unique roll number inside each Class + Section
 userSchema.index(
   { classId: 1, rollNumber: 1 },
   {
-    unique: true,
-    partialFilterExpression: {
+      unique: true,
+      partialFilterExpression: {
       role: "student",
       rollNumber: { $type: "string" },
     },
   }
 );
 
-// Password Hashing
+
+
 userSchema.pre("save", async function () {
   if (!this.isModified("password")) {
     return;
@@ -162,9 +168,14 @@ userSchema.pre("save", async function () {
   this.password = await bcrypt.hash(this.password, 12);
 });
 
-// Password Comparison
+
+
 userSchema.methods.comparePassword = async function (candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
+  
 };
+
+
+
 
 module.exports = mongoose.model("User", userSchema);
