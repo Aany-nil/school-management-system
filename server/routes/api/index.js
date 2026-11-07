@@ -15,7 +15,7 @@ const notice = require("./notice");
 const dashboard = require("./dashboard");
 const setting = require("./setting");
 const profile = require("./profile");
-// const superAdmin = require("./");
+const superAdmin = require("./superAdmin");
 
 
 
@@ -36,7 +36,7 @@ router.use("/notice", notice);
 router.use("/dashboard", dashboard);
 router.use("/settings", setting);
 router.use("/profile", profile);
-// router.use("/super-admin", superAdmin);
+router.use("/super-admin", superAdmin);
 
 
 

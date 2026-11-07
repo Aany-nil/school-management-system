@@ -1,5 +1,6 @@
 
 const School = require("../models/School");
+const User = require("../models/User");
 
 
 
@@ -283,6 +284,104 @@ const updateSchoolModules = async (req, res) => {
   }
 };
 
+
+
+const createSchoolAdmin = async (req, res) => {
+  let createdAdmin = null;
+
+  try {
+    const { schoolId } = req.params;
+    const { name, email, password } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Name, email and password are required",
+      });
+    }
+
+    if (password.length < 5) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 5 characters",
+      });
+    }
+
+    const school = await School.findById(schoolId);
+
+    if (!school) {
+      return res.status(404).json({
+        success: false,
+        message: "School not found",
+      });
+    }
+
+    if (school.status !== "active") {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot assign admin to an inactive school",
+      });
+    }
+
+    if (school.adminId) {
+      return res.status(400).json({
+        success: false,
+        message: "This school already has an admin",
+      });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const existingUser = await User.findOne({
+      email: normalizedEmail,
+    });
+
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        message: "This email is already registered",
+      });
+    }
+
+    createdAdmin = await User.create({
+      name,
+      email: normalizedEmail,
+      password,
+      role: "admin",
+      schoolId: school._id,
+    });
+
+    school.adminId = createdAdmin._id;
+    await school.save();
+
+    return res.status(201).json({
+      success: true,
+      message: "School Admin created and assigned successfully",
+      admin: {
+        _id: createdAdmin._id,
+        name: createdAdmin.name,
+        email: createdAdmin.email,
+        role: createdAdmin.role,
+        schoolId: createdAdmin.schoolId,
+      },
+    });
+  } catch (error) {
+
+    if (createdAdmin) {
+      await User.findByIdAndDelete(createdAdmin._id).catch(() => {});
+    }
+
+    console.error("Create school admin error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to create School Admin",
+      error: error.message,
+    });
+  }
+};
+
+
 module.exports = {
   createSchool,
   getAllSchools,
@@ -290,4 +389,5 @@ module.exports = {
   updateSchool,
   updateSchoolStatus,
   updateSchoolModules,
+  createSchoolAdmin
 };
